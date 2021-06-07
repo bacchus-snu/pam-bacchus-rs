@@ -6,15 +6,12 @@ edition = "2018"
 
 [dependencies]
 base64 = "0.13.0"
+curl = "0.4.38"
 log = "0.4.14"
 pam-sys = "1.0.0-alpha3"
 serde_json = "1.0.64"
 syslog = "5.0.0"
 tweetnacl = "0.4.0"
-
-[dependencies.isahc]
-version = "1.4.0"
-default-features = false
 
 [dependencies.serde]
 version = "1.0.126"

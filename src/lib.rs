@@ -156,10 +156,19 @@ fn authenticate(handle: &mut pam::Handle, flags: c_int, args: &[&CStr]) -> Resul
             pam::AuthenticateError::AuthError
         })?;
 
-    let mut req = isahc::Request::post(params.login_endpoint)
-        .header("user-agent", "pam_bacchus/0.2")
-        .header("content-type", "application/json")
-        .header("accept", "application/json");
+    let mut curl_handle = curl::easy::Easy::new();
+    curl_handle.url(params.login_endpoint)
+        .map_err(|e| {
+            error!("Invalid endpoint URL: {}", e);
+            pam::AuthenticateError::AuthInfoUnavailable
+        })?;
+    curl_handle.post_fields_copy(body.as_bytes()).unwrap();
+
+    let mut headers = curl::easy::List::new();
+    headers.append("user-agent: pam_bacchus/0.2").unwrap();
+    headers.append("content-type: application/json").unwrap();
+    headers.append("accept: application/json").unwrap();
+
     if let Some(secret_key) = key {
         let mut public_key = [0u8; 32];
         public_key.copy_from_slice(&secret_key[32..]);
@@ -168,33 +177,31 @@ fn authenticate(handle: &mut pam::Handle, flags: c_int, args: &[&CStr]) -> Resul
             .duration_since(std::time::SystemTime::UNIX_EPOCH)
             .expect("Time before UNIX epoch")
             .as_secs();
-        let header_pubkey = base64::encode(&public_key);
+        headers.append(&format!("x-bacchus-id-timestamp: {}", timestamp)).unwrap();
+
+        let mut header_pubkey = String::from("x-bacchus-id-pubkey: ");
+        base64::encode_config_buf(&public_key, base64::STANDARD, &mut header_pubkey);
+        headers.append(&header_pubkey).unwrap();
+
         let message = format!("{}{}", timestamp, body).into_bytes();
         let mut signed_message = vec![0u8; message.len() + 64];
         tweetnacl::sign(&mut signed_message, &message, &secret_key);
-        let header_signature = base64::encode(&signed_message[..64]);
 
-        req = req
-            .header("x-bacchus-id-pubkey", header_pubkey)
-            .header("x-bacchus-id-timestamp", timestamp.to_string())
-            .header("x-bacchus-id-signature", header_signature);
+        let mut header_signature = String::from("x-bacchus-id-signature: ");
+        base64::encode_config_buf(&signed_message[..64], base64::STANDARD, &mut header_signature);
+        headers.append(&header_signature).unwrap();
     }
-    let req = req.body(body)
-        .map_err(|e| {
-            error!("Failed to create request: {}", e);
-            pam::AuthenticateError::AuthError
-        })?;
+    curl_handle.http_headers(headers).unwrap();
 
-    let resp = isahc::HttpClient::new()
-        .and_then(move |client| client.send(req))
+    curl_handle.perform()
         .map_err(|e| {
             error!("Failed to send request: {}", e);
             pam::AuthenticateError::AuthError
         })?;
 
-    let status = resp.status();
-    if status != isahc::http::StatusCode::OK {
-        warn!("Authentication failed for user {}: {}", username, status);
+    let status = curl_handle.response_code().unwrap();
+    if status != 200 {
+        warn!("Authentication failed for user {}: status code {}", username, status);
         Err(pam::AuthenticateError::AuthError)
     } else {
         Ok(())
