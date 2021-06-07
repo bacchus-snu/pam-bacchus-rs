@@ -74,7 +74,7 @@ fn authenticate(handle: &mut pam::Handle, flags: c_int, args: &[&CStr]) -> Resul
     if key.is_none() && params.publickey_only() {
         error!("Public key auth enforced, aborting");
         return Err(pam::AuthenticateError::AuthInfoUnavailable);
-    } else {
+    } else if key.is_none() {
         warn!("Falling back to IP address auth");
     }
 
