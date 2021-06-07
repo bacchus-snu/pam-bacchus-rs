@@ -16,6 +16,28 @@ struct AuthPayload<'a> {
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn pam_sm_setcred(
+    _pamh: *mut pam_sys::pam_handle_t,
+    _flags: c_int,
+    _argc: c_int,
+    _argv: *const *const c_char
+) -> c_int
+{
+    pam_sys::PAM_SUCCESS
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn pam_sm_acct_mgmt(
+    _pamh: *mut pam_sys::pam_handle_t,
+    _flags: c_int,
+    _argc: c_int,
+    _argv: *const *const c_char
+) -> c_int
+{
+    pam_sys::PAM_SUCCESS
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn pam_sm_authenticate(
     pamh: *mut pam_sys::pam_handle_t,
     flags: c_int,
