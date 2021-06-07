@@ -45,20 +45,23 @@ pub unsafe extern "C" fn pam_sm_authenticate(
     argv: *const *const c_char
 ) -> c_int
 {
+    let silent = flags & pam_sys::PAM_SILENT != 0;
     let ret = std::panic::catch_unwind(move || {
-        let formatter = syslog::Formatter3164 {
-            facility: syslog::Facility::LOG_AUTH,
-            hostname: None,
-            process: String::from("pam_bacchus"),
-            pid: 0,
-        };
-        match syslog::unix(formatter) {
-            Ok(logger) => {
-                if log::set_boxed_logger(Box::new(syslog::BasicLogger::new(logger))).is_ok() {
-                    log::set_max_level(log::LevelFilter::Info);
+        if !silent {
+            let formatter = syslog::Formatter3164 {
+                facility: syslog::Facility::LOG_AUTH,
+                hostname: None,
+                process: String::from("pam_bacchus"),
+                pid: 0,
+            };
+            match syslog::unix(formatter) {
+                Ok(logger) => {
+                    if log::set_boxed_logger(Box::new(syslog::BasicLogger::new(logger))).is_ok() {
+                        log::set_max_level(log::LevelFilter::Info);
+                    }
                 }
+                _ => {}
             }
-            _ => {}
         }
 
         let args = std::slice::from_raw_parts(argv, argc as usize)
