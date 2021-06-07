@@ -1,59 +1,18 @@
+#[cfg(not(target_os = "linux"))]
+compile_error!("pam_bacchus is a Linux-PAM module, hence not compatible with non-Linux targets.");
+
 #[macro_use] extern crate log;
 
-use std::ffi::{CStr, OsStr};
+use std::ffi::CStr;
 use std::os::raw::{c_int, c_char};
-use std::os::unix::ffi::OsStrExt;
 
 mod pam;
-
-#[derive(Debug)]
-struct Params<'a> {
-    login_endpoint: &'a str,
-    secret_key_path: &'a OsStr,
-    publickey_only: bool,
-}
+mod params;
 
 #[derive(Debug, serde::Serialize)]
 struct AuthPayload<'a> {
     username: &'a str,
     password: &'a str,
-}
-
-impl<'a> Params<'a> {
-    fn parse(args: &[&'a CStr]) -> Result<Self, pam::AuthenticateError> {
-        let mut login_endpoint = None;
-        let mut secret_key_path = OsStr::from_bytes(b"/etc/bacchus/keypair/tweetnacl");
-        let mut publickey_only = false;
-        for &arg in args {
-            let b = arg.to_bytes();
-            if b.len() >= 4 && &b[..4] == b"url=" {
-                login_endpoint = Some(&arg[4..]);
-            } else if b.len() >= 4 && &b[..4] == b"key=" {
-                secret_key_path = OsStr::from_bytes(&b[4..]);
-            } else if b == b"publickey_only" {
-                publickey_only = true;
-            }
-        }
-
-        let login_endpoint = match login_endpoint {
-            Some(ep) => {
-                ep.to_str()
-                    .map_err(|_| {
-                        error!("Failed to parse arguments: login endpoint is not in UTF-8");
-                        pam::AuthenticateError::AuthInfoUnavailable
-                    })?
-            },
-            None => {
-                error!("Login endpoint not set");
-                return Err(pam::AuthenticateError::AuthInfoUnavailable);
-            },
-        };
-        Ok(Self {
-            login_endpoint,
-            secret_key_path,
-            publickey_only,
-        })
-    }
 }
 
 #[no_mangle]
@@ -101,8 +60,8 @@ pub unsafe extern "C" fn pam_sm_authenticate(
 }
 
 fn authenticate(handle: &mut pam::Handle, flags: c_int, args: &[&CStr]) -> Result<(), pam::AuthenticateError> {
-    let params = Params::parse(args)?;
-    let key = std::fs::File::open(params.secret_key_path)
+    let params = params::Params::from_args(args)?;
+    let key = std::fs::File::open(params.secret_key_path())
         .and_then(|mut f| {
             let mut key = [0u8; 64];
             std::io::Read::read_exact(&mut f, &mut key)?;
@@ -112,7 +71,7 @@ fn authenticate(handle: &mut pam::Handle, flags: c_int, args: &[&CStr]) -> Resul
             error!("Failed to read secret key: {}", e);
         })
         .ok();
-    if key.is_none() && params.publickey_only {
+    if key.is_none() && params.publickey_only() {
         error!("Public key auth enforced, aborting");
         return Err(pam::AuthenticateError::AuthInfoUnavailable);
     } else {
@@ -157,7 +116,7 @@ fn authenticate(handle: &mut pam::Handle, flags: c_int, args: &[&CStr]) -> Resul
         })?;
 
     let mut curl_handle = curl::easy::Easy::new();
-    curl_handle.url(params.login_endpoint)
+    curl_handle.url(params.login_endpoint())
         .map_err(|e| {
             error!("Invalid endpoint URL: {}", e);
             pam::AuthenticateError::AuthInfoUnavailable

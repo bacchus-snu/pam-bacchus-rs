@@ -5,6 +5,8 @@ use std::os::raw::c_int;
 use std::ptr::NonNull;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(dead_code)]
+#[non_exhaustive]
 pub enum AuthenticateError {
     AuthError,
     InsufficientCredentials,
@@ -14,6 +16,7 @@ pub enum AuthenticateError {
 }
 
 impl Into<c_int> for AuthenticateError {
+    #[inline]
     fn into(self) -> c_int {
         match self {
             Self::AuthError => pam_sys::PAM_AUTH_ERR,
@@ -26,6 +29,7 @@ impl Into<c_int> for AuthenticateError {
 }
 
 impl fmt::Display for AuthenticateError {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
             Self::AuthError => "authentication error",
@@ -50,6 +54,7 @@ pub enum ItemError {
 }
 
 impl From<c_int> for ItemError {
+    #[inline]
     fn from(val: c_int) -> Self {
         match val {
             pam_sys::PAM_BAD_ITEM => Self::BadItem,
@@ -62,6 +67,7 @@ impl From<c_int> for ItemError {
 }
 
 impl fmt::Display for ItemError {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
             Self::BadItem => "inaccessible item",
@@ -86,6 +92,7 @@ pub enum GetAuthTokenError {
 }
 
 impl From<c_int> for GetAuthTokenError {
+    #[inline]
     fn from(val: c_int) -> Self {
         match val {
             pam_sys::PAM_AUTH_ERR => Self::Auth,
@@ -98,6 +105,7 @@ impl From<c_int> for GetAuthTokenError {
 }
 
 impl fmt::Display for GetAuthTokenError {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
             Self::Auth => "cannot retrieve authentication token",
@@ -123,6 +131,7 @@ pub enum GetUserError {
 }
 
 impl From<c_int> for GetUserError {
+    #[inline]
     fn from(val: c_int) -> Self {
         match val {
             pam_sys::PAM_SYSTEM_ERR => Self::System,
@@ -136,6 +145,7 @@ impl From<c_int> for GetUserError {
 }
 
 impl fmt::Display for GetUserError {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
             Self::System => "bad handle",
@@ -151,13 +161,22 @@ impl fmt::Display for GetUserError {
 
 impl std::error::Error for GetUserError {}
 
+/// Wrapper for a PAM handle.
 pub struct Handle(NonNull<pam_sys::pam_handle_t>);
 
 impl Handle {
+    /// Create a new `Handle` with a raw pointer.
+    ///
+    /// # Safety
+    /// `pamh` should be a valid pointer to `pam_handle_t`.
+    #[inline(always)]
     pub unsafe fn new(pamh: *mut pam_sys::pam_handle_t) -> Self {
         Self(NonNull::new_unchecked(pamh))
     }
 
+    /// Get the username to authenticate, prompting the user if necessary.
+    ///
+    /// Corresponds to Linux-PAM API `pam_get_user`.
     pub fn get_user(&self, prompt: Option<&CStr>) -> Result<&CStr, GetUserError> {
         let mut out: *const c_char = std::ptr::null();
         let prompt = prompt.map(|s| s.as_ptr()).unwrap_or_else(std::ptr::null);
@@ -176,6 +195,9 @@ impl Handle {
         Ok(ret)
     }
 
+    /// Get the authentication token, prompting the user if necessary.
+    ///
+    /// Corresponds to Linux-PAM API `pam_get_authtok`.
     pub fn get_auth_token(&self, prompt: Option<&CStr>) -> Result<&CStr, GetAuthTokenError> {
         let mut out: *const c_char = std::ptr::null();
         let prompt = prompt.map(|s| s.as_ptr()).unwrap_or_else(std::ptr::null);
