@@ -181,11 +181,7 @@ impl Handle {
         let mut out: *const c_char = std::ptr::null();
         let prompt = prompt.map(|s| s.as_ptr()).unwrap_or_else(std::ptr::null);
         let ret = unsafe {
-            let ret = pam_sys::pam_get_user(
-                self.0.as_ptr(),
-                &mut out,
-                prompt,
-            );
+            let ret = pam_sys::pam_get_user(self.0.as_ptr(), &mut out, prompt);
             if ret != pam_sys::PAM_SUCCESS {
                 return Err(GetUserError::from(ret));
             }
@@ -202,12 +198,8 @@ impl Handle {
         let mut out: *const c_char = std::ptr::null();
         let prompt = prompt.map(|s| s.as_ptr()).unwrap_or_else(std::ptr::null);
         let ret = unsafe {
-            let ret = pam_sys::pam_get_authtok(
-                self.0.as_ptr(),
-                pam_sys::PAM_AUTHTOK,
-                &mut out,
-                prompt,
-            );
+            let ret =
+                pam_sys::pam_get_authtok(self.0.as_ptr(), pam_sys::PAM_AUTHTOK, &mut out, prompt);
             if ret != pam_sys::PAM_SUCCESS {
                 return Err(GetAuthTokenError::from(ret));
             }

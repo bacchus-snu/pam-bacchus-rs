@@ -1,10 +1,11 @@
 #[cfg(not(target_os = "linux"))]
 compile_error!("pam_bacchus is a Linux-PAM module, hence not compatible with non-Linux targets");
 
-#[macro_use] extern crate log;
+#[macro_use]
+extern crate log;
 
 use std::ffi::CStr;
-use std::os::raw::{c_int, c_char};
+use std::os::raw::{c_char, c_int};
 
 mod pam;
 mod params;
@@ -20,9 +21,8 @@ pub unsafe extern "C" fn pam_sm_setcred(
     _pamh: *mut pam_sys::pam_handle_t,
     _flags: c_int,
     _argc: c_int,
-    _argv: *const *const c_char
-) -> c_int
-{
+    _argv: *const *const c_char,
+) -> c_int {
     pam_sys::PAM_SUCCESS
 }
 
@@ -31,9 +31,8 @@ pub unsafe extern "C" fn pam_sm_acct_mgmt(
     _pamh: *mut pam_sys::pam_handle_t,
     _flags: c_int,
     _argc: c_int,
-    _argv: *const *const c_char
-) -> c_int
-{
+    _argv: *const *const c_char,
+) -> c_int {
     pam_sys::PAM_SUCCESS
 }
 
@@ -42,9 +41,8 @@ pub unsafe extern "C" fn pam_sm_authenticate(
     pamh: *mut pam_sys::pam_handle_t,
     flags: c_int,
     argc: c_int,
-    argv: *const *const c_char
-) -> c_int
-{
+    argv: *const *const c_char,
+) -> c_int {
     let silent = flags & pam_sys::PAM_SILENT != 0;
     let ret = std::panic::catch_unwind(move || {
         if !silent {
@@ -81,11 +79,15 @@ pub unsafe extern "C" fn pam_sm_authenticate(
         Err(_) => {
             error!("pam_sm_authenticate panicked");
             pam_sys::PAM_AUTH_ERR
-        },
+        }
     }
 }
 
-fn authenticate(handle: &mut pam::Handle, flags: c_int, args: &[&CStr]) -> Result<(), pam::AuthenticateError> {
+fn authenticate(
+    handle: &mut pam::Handle,
+    flags: c_int,
+    args: &[&CStr],
+) -> Result<(), pam::AuthenticateError> {
     let params = params::Params::from_args(args)?;
     let key = std::fs::File::open(params.secret_key_path())
         .and_then(|mut f| {
@@ -102,29 +104,29 @@ fn authenticate(handle: &mut pam::Handle, flags: c_int, args: &[&CStr]) -> Resul
         warn!("Falling back to IP address auth");
     }
 
-    let username = handle.get_user(None)
+    let username = handle
+        .get_user(None)
         .map_err(|e| {
             error!("Failed to get username: {}", e);
             pam::AuthenticateError::AuthError
         })
         .and_then(|username| {
-            username.to_str()
-                .map_err(|_| {
-                    error!("Failed to parse username: not in UTF-8");
-                    pam::AuthenticateError::AuthError
-                })
+            username.to_str().map_err(|_| {
+                error!("Failed to parse username: not in UTF-8");
+                pam::AuthenticateError::AuthError
+            })
         })?;
-    let password = handle.get_auth_token(None)
+    let password = handle
+        .get_auth_token(None)
         .map_err(|e| {
             error!("Failed to get token: {}", e);
             pam::AuthenticateError::AuthError
         })
         .and_then(|password| {
-            password.to_str()
-                .map_err(|_| {
-                    error!("Failed to parse token: not in UTF-8");
-                    pam::AuthenticateError::AuthError
-                })
+            password.to_str().map_err(|_| {
+                error!("Failed to parse token: not in UTF-8");
+                pam::AuthenticateError::AuthError
+            })
         })?;
 
     if flags & pam_sys::PAM_DISALLOW_NULL_AUTHTOK != 0 && password.is_empty() {
@@ -133,18 +135,16 @@ fn authenticate(handle: &mut pam::Handle, flags: c_int, args: &[&CStr]) -> Resul
     }
 
     let payload = AuthPayload { username, password };
-    let body = serde_json::to_string(&payload)
-        .map_err(|e| {
-            error!("Failed to serialize auth payload: {}", e);
-            pam::AuthenticateError::AuthError
-        })?;
+    let body = serde_json::to_string(&payload).map_err(|e| {
+        error!("Failed to serialize auth payload: {}", e);
+        pam::AuthenticateError::AuthError
+    })?;
 
     let mut curl_handle = curl::easy::Easy::new();
-    curl_handle.url(params.login_endpoint())
-        .map_err(|e| {
-            error!("Invalid endpoint URL: {}", e);
-            pam::AuthenticateError::AuthInfoUnavailable
-        })?;
+    curl_handle.url(params.login_endpoint()).map_err(|e| {
+        error!("Invalid endpoint URL: {}", e);
+        pam::AuthenticateError::AuthInfoUnavailable
+    })?;
     curl_handle.post_fields_copy(body.as_bytes()).unwrap();
 
     let mut headers = curl::easy::List::new();
@@ -161,7 +161,9 @@ fn authenticate(handle: &mut pam::Handle, flags: c_int, args: &[&CStr]) -> Resul
             .duration_since(std::time::SystemTime::UNIX_EPOCH)
             .expect("Time before UNIX epoch")
             .as_secs();
-        headers.append(&format!("x-bacchus-id-timestamp: {}", timestamp)).unwrap();
+        headers
+            .append(&format!("x-bacchus-id-timestamp: {}", timestamp))
+            .unwrap();
 
         let mut header_pubkey = String::from("x-bacchus-id-pubkey: ");
         base64::encode_config_buf(&public_key, base64::STANDARD, &mut header_pubkey);
@@ -172,20 +174,26 @@ fn authenticate(handle: &mut pam::Handle, flags: c_int, args: &[&CStr]) -> Resul
         tweetnacl::sign(&mut signed_message, &message, &secret_key);
 
         let mut header_signature = String::from("x-bacchus-id-signature: ");
-        base64::encode_config_buf(&signed_message[..64], base64::STANDARD, &mut header_signature);
+        base64::encode_config_buf(
+            &signed_message[..64],
+            base64::STANDARD,
+            &mut header_signature,
+        );
         headers.append(&header_signature).unwrap();
     }
     curl_handle.http_headers(headers).unwrap();
 
-    curl_handle.perform()
-        .map_err(|e| {
-            error!("Failed to send request: {}", e);
-            pam::AuthenticateError::AuthError
-        })?;
+    curl_handle.perform().map_err(|e| {
+        error!("Failed to send request: {}", e);
+        pam::AuthenticateError::AuthError
+    })?;
 
     let status = curl_handle.response_code().unwrap();
     if status != 200 {
-        warn!("Authentication failed for user {}: status code {}", username, status);
+        warn!(
+            "Authentication failed for user {}: status code {}",
+            username, status
+        );
         Err(pam::AuthenticateError::AuthError)
     } else {
         Ok(())

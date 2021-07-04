@@ -27,17 +27,14 @@ impl<'a> Params<'a> {
         }
 
         let login_endpoint = match login_endpoint {
-            Some(ep) => {
-                ep.to_str()
-                    .map_err(|_| {
-                        error!("Failed to parse arguments: login endpoint is not in UTF-8");
-                        AuthenticateError::AuthInfoUnavailable
-                    })?
-            },
+            Some(ep) => ep.to_str().map_err(|_| {
+                error!("Failed to parse arguments: login endpoint is not in UTF-8");
+                AuthenticateError::AuthInfoUnavailable
+            })?,
             None => {
                 error!("Login endpoint not set");
                 return Err(AuthenticateError::AuthInfoUnavailable);
-            },
+            }
         };
         Ok(Self {
             login_endpoint,
