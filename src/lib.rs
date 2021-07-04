@@ -148,7 +148,14 @@ fn authenticate(
     curl_handle.post_fields_copy(body.as_bytes()).unwrap();
 
     let mut headers = curl::easy::List::new();
-    headers.append("user-agent: pam_bacchus/0.2").unwrap();
+    headers
+        .append(concat!(
+            "user-agent: ",
+            env!("CARGO_CRATE_NAME"),
+            "/",
+            env!("CARGO_PKG_VERSION")
+        ))
+        .unwrap();
     headers.append("content-type: application/json").unwrap();
     headers.append("accept: application/json").unwrap();
 

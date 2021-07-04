@@ -1,7 +1,13 @@
 [package]
 name = "pam-bacchus"
-version = "0.1.0"
-authors = ["Wonwoo Choi <vbchunguk@bacchus.snucse.org>"]
+version = "0.2.0"
+description = "Linux-PAM module for Bacchus ID"
+repository = "https://github.com/baccus-snu/pam-bacchus-rs.git"
+license = "MIT"
+authors = [
+  "Jae Hyeon Park <skystar@bacchus.snucse.org>",
+  "Wonwoo Choi <vbchunguk@bacchus.snucse.org>",
+]
 edition = "2018"
 
 [dependencies]
