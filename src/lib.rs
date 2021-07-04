@@ -1,5 +1,5 @@
 #[cfg(not(target_os = "linux"))]
-compile_error!("pam_bacchus is a Linux-PAM module, hence not compatible with non-Linux targets.");
+compile_error!("pam_bacchus is a Linux-PAM module, hence not compatible with non-Linux targets");
 
 #[macro_use] extern crate log;
 
@@ -64,12 +64,13 @@ pub unsafe extern "C" fn pam_sm_authenticate(
             }
         }
 
+        // Convert params into CStr
         let args = std::slice::from_raw_parts(argv, argc as usize)
             .iter()
             .map(|&ptr| CStr::from_ptr(ptr))
             .collect::<Vec<_>>();
-        let mut handle = pam::Handle::new(pamh);
 
+        let mut handle = pam::Handle::new(pamh);
         authenticate(&mut handle, flags, &args)
             .map(|_| pam_sys::PAM_SUCCESS)
             .unwrap_or_else(<_ as Into<c_int>>::into)
@@ -92,9 +93,7 @@ fn authenticate(handle: &mut pam::Handle, flags: c_int, args: &[&CStr]) -> Resul
             std::io::Read::read_exact(&mut f, &mut key)?;
             Ok(key)
         })
-        .map_err(|e| {
-            error!("Failed to read secret key: {}", e);
-        })
+        .map_err(|e| error!("Failed to read secret key: {}", e))
         .ok();
     if key.is_none() && params.publickey_only() {
         error!("Public key auth enforced, aborting");
@@ -153,6 +152,7 @@ fn authenticate(handle: &mut pam::Handle, flags: c_int, args: &[&CStr]) -> Resul
     headers.append("content-type: application/json").unwrap();
     headers.append("accept: application/json").unwrap();
 
+    // Compute Ed25519 signature
     if let Some(secret_key) = key {
         let mut public_key = [0u8; 32];
         public_key.copy_from_slice(&secret_key[32..]);
