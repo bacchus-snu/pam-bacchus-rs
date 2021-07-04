@@ -2,7 +2,7 @@
 name = "pam-bacchus"
 version = "0.2.0"
 description = "Linux-PAM module for Bacchus ID"
-repository = "https://github.com/baccus-snu/pam-bacchus-rs.git"
+repository = "https://github.com/bacchus-snu/pam-bacchus-rs.git"
 license = "MIT"
 authors = [
   "Jae Hyeon Park <skystar@bacchus.snucse.org>",
