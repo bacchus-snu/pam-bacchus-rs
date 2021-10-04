@@ -5,6 +5,7 @@ compile_error!("pam_bacchus is a Linux-PAM module, hence not compatible with non
 extern crate log;
 
 use std::ffi::CStr;
+use std::io::prelude::*;
 use std::os::raw::{c_char, c_int};
 
 mod pam;
@@ -89,18 +90,13 @@ fn authenticate(
     args: &[&CStr],
 ) -> Result<(), pam::AuthenticateError> {
     let params = params::Params::from_args(args)?;
-    let key = std::fs::File::open(params.secret_key_path())
-        .and_then(|mut f| {
-            let mut key = [0u8; 64];
-            std::io::Read::read_exact(&mut f, &mut key)?;
-            Ok(key)
-        })
-        .map_err(|e| error!("Failed to read secret key: {}", e))
+    let mut sock = std::os::unix::net::UnixStream::connect(params.socket_path())
+        .map_err(|e| error!("Failed to connect signing socket: {}", e))
         .ok();
-    if key.is_none() && params.publickey_only() {
+    if sock.is_none() && params.publickey_only() {
         error!("Public key auth enforced, aborting");
         return Err(pam::AuthenticateError::AuthInfoUnavailable);
-    } else if key.is_none() {
+    } else if sock.is_none() {
         warn!("Falling back to IP address auth");
     }
 
@@ -140,6 +136,13 @@ fn authenticate(
         pam::AuthenticateError::AuthError
     })?;
 
+    if let Some(sock) = &mut sock {
+        sock.write_all(body.as_bytes()).map_err(|e| {
+            error!("Failed to write payload to signing socket: {}", e);
+            pam::AuthenticateError::AuthError
+        })?;
+    }
+
     let mut curl_handle = curl::easy::Easy::new();
     curl_handle.url(params.login_endpoint()).map_err(|e| {
         error!("Invalid endpoint URL: {}", e);
@@ -159,33 +162,23 @@ fn authenticate(
     headers.append("content-type: application/json").unwrap();
     headers.append("accept: application/json").unwrap();
 
-    // Compute Ed25519 signature
-    if let Some(secret_key) = key {
-        let mut public_key = [0u8; 32];
-        public_key.copy_from_slice(&secret_key[32..]);
-
-        let timestamp = std::time::SystemTime::now()
-            .duration_since(std::time::SystemTime::UNIX_EPOCH)
-            .expect("Time before UNIX epoch")
-            .as_secs();
-        headers
-            .append(&format!("x-bacchus-id-timestamp: {}", timestamp))
-            .unwrap();
-
+    if let Some(sock) = sock {
+        let mut buf_sock = std::io::BufReader::new(sock);
         let mut header_pubkey = String::from("x-bacchus-id-pubkey: ");
-        base64::encode_config_buf(&public_key, base64::STANDARD, &mut header_pubkey);
-        headers.append(&header_pubkey).unwrap();
-
-        let message = format!("{}{}", timestamp, body).into_bytes();
-        let mut signed_message = vec![0u8; message.len() + 64];
-        tweetnacl::sign(&mut signed_message, &message, &secret_key);
-
+        let mut header_ts = String::from("x-bacchus-id-timestamp: ");
         let mut header_signature = String::from("x-bacchus-id-signature: ");
-        base64::encode_config_buf(
-            &signed_message[..64],
-            base64::STANDARD,
-            &mut header_signature,
-        );
+
+        buf_sock
+            .read_line(&mut header_pubkey)
+            .and_then(|_| buf_sock.read_line(&mut header_ts))
+            .and_then(|_| buf_sock.read_line(&mut header_signature))
+            .map_err(|e| {
+                error!("Failed to read from signing socket: {}", e);
+                pam::AuthenticateError::AuthError
+            })?;
+
+        headers.append(&header_pubkey).unwrap();
+        headers.append(&header_ts).unwrap();
         headers.append(&header_signature).unwrap();
     }
     curl_handle.http_headers(headers).unwrap();

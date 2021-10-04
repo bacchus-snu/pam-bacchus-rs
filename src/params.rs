@@ -6,21 +6,21 @@ use crate::pam::AuthenticateError;
 #[derive(Debug)]
 pub struct Params<'a> {
     login_endpoint: &'a str,
-    secret_key_path: &'a OsStr,
+    socket_path: &'a OsStr,
     publickey_only: bool,
 }
 
 impl<'a> Params<'a> {
     pub fn from_args(args: &[&'a CStr]) -> Result<Self, AuthenticateError> {
         let mut login_endpoint = None;
-        let mut secret_key_path = OsStr::from_bytes(b"/etc/bacchus/keypair/tweetnacl");
+        let mut socket_path = OsStr::from_bytes(b"/run/bacchus-sign.sock");
         let mut publickey_only = false;
         for &arg in args {
             let b = arg.to_bytes();
             if b.len() >= 4 && &b[..4] == b"url=" {
                 login_endpoint = Some(&arg[4..]);
-            } else if b.len() >= 4 && &b[..4] == b"key=" {
-                secret_key_path = OsStr::from_bytes(&b[4..]);
+            } else if b.len() >= 4 && &b[..4] == b"sock=" {
+                socket_path = OsStr::from_bytes(&b[4..]);
             } else if b == b"publickey_only" {
                 publickey_only = true;
             }
@@ -38,7 +38,7 @@ impl<'a> Params<'a> {
         };
         Ok(Self {
             login_endpoint,
-            secret_key_path,
+            socket_path,
             publickey_only,
         })
     }
@@ -49,8 +49,8 @@ impl<'a> Params<'a> {
     }
 
     #[inline(always)]
-    pub fn secret_key_path(&self) -> &std::path::Path {
-        self.secret_key_path.as_ref()
+    pub fn socket_path(&self) -> &std::path::Path {
+        self.socket_path.as_ref()
     }
 
     #[inline(always)]
