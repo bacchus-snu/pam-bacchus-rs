@@ -1,0 +1,8 @@
+Name: Bacchus ID authentication
+Default: no
+Priority: 128
+Auth-Type: Primary
+Auth-Initial:
+  [success=end default=ignore]  pam_bacchus.so  url=https://id.snucse.org/api/login/pam
+Auth:
+  [success=end default=ignore]  pam_bacchus.so  url=https://id.snucse.org/api/login/pam try_first_pass

@@ -40,4 +40,5 @@ maintainer-scripts = "debian/scripts/"
 assets = [
   ["target/release/libpam_bacchus.so", "/lib/x86_64-linux-gnu/security/pam_bacchus.so", "755"],
   ["README.md", "/usr/share/doc/pam-bacchus/README", "644"],
+  ["debian/pam", "/usr/share/pam-configs/bacchus", "644"],
 ]
