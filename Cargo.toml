@@ -8,7 +8,7 @@ authors = [
   "Jae Hyeon Park <skystar@bacchus.snucse.org>",
   "Wonwoo Choi <vbchunguk@bacchus.snucse.org>",
 ]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 base64 = "0.13.0"
