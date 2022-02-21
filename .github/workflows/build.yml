@@ -1,0 +1,31 @@
+name: Lint and build
+on:
+  push:
+    branches:
+    - main
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Setup Rust toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        components: clippy
+        override: true
+    - name: Run cargo clippy
+      uses: actions-rs/cargo@v1
+      with:
+        command: clippy
+    - name: Run cargo build
+      uses: actions-rs/cargo@v1
+      with:
+        command: build --release
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: pam_bacchus.so
+        path: target/release/libpam_bacchus.so
