@@ -9,8 +9,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - name: Install libpam0g-dev, dpkg-dev
-      run: sudo apt install libpam0g-dev dpkg-dev
+    - name: Install libcurl4-openssl-dev, libpam0g-dev, dpkg-dev
+      run: sudo apt install libcurl4-openssl-dev libpam0g-dev dpkg-dev
     - name: Checkout
       uses: actions/checkout@v2
     - name: Setup cache
