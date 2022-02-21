@@ -7,6 +7,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+    - name: Install libpam0g-dev
+      run: sudo apt install libpam0g-dev
     - name: Checkout
       uses: actions/checkout@v2
     - name: Setup Rust toolchain
@@ -16,6 +18,16 @@ jobs:
         toolchain: stable
         components: clippy
         override: true
+    - name: Setup cache
+      uses: actions/cache@v2
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
     - name: Run cargo clippy
       uses: actions-rs/cargo@v1
       with:
@@ -23,7 +35,8 @@ jobs:
     - name: Run cargo build
       uses: actions-rs/cargo@v1
       with:
-        command: build --release
+        command: build
+        args: --release
     - name: Upload build artifact
       uses: actions/upload-artifact@v2
       with:
