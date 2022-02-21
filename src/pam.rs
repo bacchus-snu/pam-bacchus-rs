@@ -15,15 +15,15 @@ pub enum AuthenticateError {
     MaxTries,
 }
 
-impl Into<c_int> for AuthenticateError {
+impl From<AuthenticateError> for c_int {
     #[inline]
-    fn into(self) -> c_int {
-        match self {
-            Self::AuthError => pam_sys::PAM_AUTH_ERR,
-            Self::InsufficientCredentials => pam_sys::PAM_CRED_INSUFFICIENT,
-            Self::AuthInfoUnavailable => pam_sys::PAM_AUTHINFO_UNAVAIL,
-            Self::UnknownUser => pam_sys::PAM_USER_UNKNOWN,
-            Self::MaxTries => pam_sys::PAM_MAXTRIES,
+    fn from(v: AuthenticateError) -> c_int {
+        match v {
+            AuthenticateError::AuthError => pam_sys::PAM_AUTH_ERR,
+            AuthenticateError::InsufficientCredentials => pam_sys::PAM_CRED_INSUFFICIENT,
+            AuthenticateError::AuthInfoUnavailable => pam_sys::PAM_AUTHINFO_UNAVAIL,
+            AuthenticateError::UnknownUser => pam_sys::PAM_USER_UNKNOWN,
+            AuthenticateError::MaxTries => pam_sys::PAM_MAXTRIES,
         }
     }
 }

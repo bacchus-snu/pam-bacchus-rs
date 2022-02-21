@@ -1,3 +1,4 @@
+#![allow(clippy::missing_safety_doc)]
 #[cfg(not(target_os = "linux"))]
 compile_error!("pam_bacchus is a Linux-PAM module, hence not compatible with non-Linux targets");
 
@@ -53,13 +54,10 @@ pub unsafe extern "C" fn pam_sm_authenticate(
                 process: String::from("pam_bacchus"),
                 pid: 0,
             };
-            match syslog::unix(formatter) {
-                Ok(logger) => {
-                    if log::set_boxed_logger(Box::new(syslog::BasicLogger::new(logger))).is_ok() {
-                        log::set_max_level(log::LevelFilter::Info);
-                    }
+            if let Ok(logger) = syslog::unix(formatter) {
+                if log::set_boxed_logger(Box::new(syslog::BasicLogger::new(logger))).is_ok() {
+                    log::set_max_level(log::LevelFilter::Info);
                 }
-                _ => {}
             }
         }
 
