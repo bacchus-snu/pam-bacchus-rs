@@ -3,6 +3,7 @@ name = "pam-bacchus"
 version = "0.3.1"
 description = "Linux-PAM module for Bacchus ID"
 repository = "https://github.com/bacchus-snu/pam-bacchus-rs.git"
+readme = "README.md"
 license = "MIT"
 authors = [
   "Jae Hyeon Park <skystar@bacchus.snucse.org>",
@@ -16,7 +17,7 @@ curl = "0.4.38"
 log = "0.4.14"
 pam-sys = "1.0.0-alpha3"
 serde_json = "1.0.64"
-syslog = "5.0.0"
+syslog = "6.0.1"
 tweetnacl = "0.4.0"
 
 [dependencies.serde]
@@ -29,3 +30,14 @@ crate-type = ["cdylib"]
 
 [profile.release]
 lto = true
+debug = 1  # line information only
+
+[package.metadata.deb]
+maintainer = "Bacchus <contact@bacchus.snucse.org>"
+section = "misc"
+depends = "$auto, bacchus-sign"
+maintainer-scripts = "debian/scripts/"
+assets = [
+  ["target/release/libpam_bacchus.so", "/lib/x86_64-linux-gnu/security/pam_bacchus.so", "755"],
+  ["README.md", "/usr/share/doc/pam-bacchus/README", "644"],
+]
