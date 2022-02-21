@@ -135,10 +135,14 @@ fn authenticate(
     })?;
 
     if let Some(sock) = &mut sock {
-        sock.write_all(body.as_bytes()).map_err(|e| {
-            error!("Failed to write payload to signing socket: {}", e);
-            pam::AuthenticateError::AuthError
-        })?;
+        sock
+            .write_all(body.as_bytes())
+            .and_then(|_| sock.flush())
+            .and_then(|_| sock.shutdown(std::net::Shutdown::Write))
+            .map_err(|e| {
+                error!("Failed to write payload to signing socket: {}", e);
+                pam::AuthenticateError::AuthError
+            })?;
     }
 
     let mut curl_handle = curl::easy::Easy::new();
