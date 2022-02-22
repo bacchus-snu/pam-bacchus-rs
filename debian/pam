@@ -1,5 +1,5 @@
 Name: Bacchus ID authentication
-Default: no
+Default: yes
 Priority: 128
 Auth-Type: Primary
 Auth-Initial:
