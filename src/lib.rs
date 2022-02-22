@@ -188,10 +188,17 @@ fn authenticate(
     }
     curl_handle.http_headers(headers).unwrap();
 
-    curl_handle.perform().map_err(|e| {
+    let mut buf = Vec::new();
+    let mut transfer = curl_handle.transfer();
+    transfer.write_function(|b| {
+        buf.extend_from_slice(b);
+        Ok(b.len())
+    }).unwrap();
+    transfer.perform().map_err(|e| {
         error!("Failed to send request: {}", e);
         pam::AuthenticateError::AuthError
     })?;
+    drop(transfer);
 
     let status = curl_handle.response_code().unwrap();
     if status != 200 {
@@ -201,6 +208,7 @@ fn authenticate(
         );
         Err(pam::AuthenticateError::AuthError)
     } else {
+        info!("Response body: {}", String::from_utf8(buf).unwrap());
         Ok(())
     }
 }
