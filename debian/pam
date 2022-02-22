@@ -6,3 +6,6 @@ Auth-Initial:
   [success=end default=ignore]  pam_bacchus.so  url=https://id.snucse.org/api/login/pam
 Auth:
   [success=end default=ignore]  pam_bacchus.so  url=https://id.snucse.org/api/login/pam try_first_pass
+Account-Type: Primary
+Account:
+  [success=end default=ignore]  pam_succeed_if.so quiet user ingroup cseusers
