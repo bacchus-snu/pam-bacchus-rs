@@ -1,6 +1,6 @@
 [package]
 name = "pam-bacchus"
-version = "0.3.3"
+version = "0.3.4"
 description = "Linux-PAM module for Bacchus ID"
 repository = "https://github.com/bacchus-snu/pam-bacchus-rs.git"
 readme = "README.md"
