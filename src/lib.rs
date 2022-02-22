@@ -165,19 +165,22 @@ fn authenticate(
     headers.append("accept: application/json").unwrap();
 
     if let Some(sock) = sock {
-        let mut buf_sock = std::io::BufReader::new(sock);
-        let mut header_pubkey = String::from("x-bacchus-id-pubkey: ");
-        let mut header_ts = String::from("x-bacchus-id-timestamp: ");
-        let mut header_signature = String::from("x-bacchus-id-signature: ");
-
-        buf_sock
-            .read_line(&mut header_pubkey)
-            .and_then(|_| buf_sock.read_line(&mut header_ts))
-            .and_then(|_| buf_sock.read_line(&mut header_signature))
+        let buf_sock = std::io::BufReader::new(sock);
+        let lines = buf_sock.lines()
+            .take(3)
+            .collect::<Result<Vec<_>, _>>()
             .map_err(|e| {
                 error!("Failed to read from signing socket: {}", e);
                 pam::AuthenticateError::AuthError
             })?;
+        if lines.len() < 3 {
+            error!("Insufficient data from signing socket");
+            return Err(pam::AuthenticateError::AuthError);
+        }
+
+        let header_pubkey = format!("x-bacchus-id-pubkey: {}", lines[0]);
+        let header_ts = format!("x-bacchus-id-timestamp: {}", lines[1]);
+        let header_signature = format!("x-bacchus-id-signature: {}", lines[2]);
 
         headers.append(&header_pubkey).unwrap();
         headers.append(&header_ts).unwrap();
