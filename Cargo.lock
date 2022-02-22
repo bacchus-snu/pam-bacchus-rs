@@ -329,7 +329,7 @@ dependencies = [
 
 [[package]]
 name = "pam-bacchus"
-version = "0.3.4"
+version = "0.3.5"
 dependencies = [
  "base64",
  "curl",
