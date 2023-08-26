@@ -3,9 +3,12 @@ Default: yes
 Priority: 128
 Auth-Type: Primary
 Auth-Initial:
-  [success=end default=ignore]  pam_bacchus.so  url=https://id.snucse.org/api/login/pam
+	[success=1 default=ignore]	pam_localuser.so
+	[success=end default=ignore]	pam_bacchus.so		url=https://id.snucse.org/api/login/pam
 Auth:
-  [success=end default=ignore]  pam_bacchus.so  url=https://id.snucse.org/api/login/pam try_first_pass
+	[success=1 default=ignore]	pam_localuser.so
+	[success=end default=ignore]	pam_bacchus.so		url=https://id.snucse.org/api/login/pam try_first_pass
 Account-Type: Primary
 Account:
-  [success=end default=ignore]  pam_succeed_if.so quiet user ingroup cseusers
+	[success=1 default=ignore]	pam_localuser.so
+	[success=end default=ignore]	pam_succeed_if.so quiet	user ingroup cseusers
